@@ -1,133 +1,198 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <title>AR Soplar y Encestar</title>
+<meta charset="UTF-8">
+<title>Sopla y esquiva 💨</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 
-  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+<style>
+html,body{
+  margin:0;
+  padding:0;
+  background:#0b0b0b;
+  overflow:hidden;
+  touch-action:none;
+  font-family: Arial, sans-serif;
+}
+
+canvas{
+  display:block;
+  background: radial-gradient(circle at top, #111, #000);
+}
+
+/* BOTONES */
+#controls{
+  position:fixed;
+  bottom:20px;
+  width:100%;
+  display:flex;
+  justify-content:space-between;
+  padding:0 30px;
+  box-sizing:border-box;
+}
+
+.btn{
+  width:80px;
+  height:80px;
+  border-radius:50%;
+  background:#ffffff22;
+  color:white;
+  font-size:40px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  user-select:none;
+}
+
+#start{
+  position:fixed;
+  inset:0;
+  background:#000c;
+  color:white;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:24px;
+  z-index:10;
+  text-align:center;
+}
+</style>
 </head>
 
-<body style="margin:0; overflow:hidden;">
+<body>
 
-<a-scene
-  embedded
-  arjs="sourceType: webcam; debugUIEnabled: false;"
-  vr-mode-ui="enabled:false">
+<canvas id="game"></canvas>
 
-  <!-- MARKER -->
-  <a-marker preset="hiro">
+<div id="start">Toca para empezar<br>y sopla al micrófono 💨</div>
 
-    <!-- LUCES -->
-    <a-entity light="type: ambient; intensity: 1"></a-entity>
-    <a-entity light="type: directional; intensity: 1" position="0 1 1"></a-entity>
-
-    <!-- ARO -->
-    <a-torus
-      id="hoop"
-      position="0 0.6 -1"
-      radius="0.3"
-      radius-tubular="0.03"
-      rotation="90 0 0"
-      color="#00FFFF">
-    </a-torus>
-
-    <!-- CUBO (VISIBLE SEGURO) -->
-    <a-box
-      id="cube"
-      position="0 0.1 -1"
-      depth="0.15"
-      height="0.15"
-      width="0.15"
-      color="#FF3333">
-    </a-box>
-
-  </a-marker>
-
-  <a-entity camera></a-entity>
-</a-scene>
-
-<!-- UI TAP -->
-<div id="tap"
-style="
-position:fixed;
-top:0;left:0;
-width:100%;height:100%;
-background:#0008;
-color:white;
-display:flex;
-align-items:center;
-justify-content:center;
-font-size:24px;
-z-index:10;">
-Toca la pantalla y sopla 🌬️
+<div id="controls">
+  <div class="btn" id="left">◀</div>
+  <div class="btn" id="right">▶</div>
 </div>
 
 <script>
-let audioContext, analyser;
-let velocityY = 0;
-const gravity = -0.0012;
-const blowForce = 0.004;
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-const cube = document.querySelector("#cube");
-const hoop = document.querySelector("#hoop");
+function resize(){
+  canvas.width = innerWidth;
+  canvas.height = innerHeight;
+}
+window.addEventListener("resize", resize);
+resize();
 
-async function initMic() {
-  audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  const mic = audioContext.createMediaStreamSource(stream);
-  analyser = audioContext.createAnalyser();
+/* 🎈 JUGADOR */
+let player = {
+  x: canvas.width/2,
+  y: canvas.height-120,
+  r: 18,
+  vy: 0
+};
+
+const gravity = 0.15;
+const blowForce = -0.5;
+let moveLeft=false, moveRight=false;
+
+/* 💣 MINAS */
+let mines=[];
+
+function spawnMines(){
+  mines=[];
+  for(let i=0;i<6;i++){
+    mines.push({
+      x: Math.random()*canvas.width,
+      y: Math.random()*canvas.height*0.7,
+      r: 18
+    });
+  }
+}
+
+/* 🎤 MICRO */
+let analyser;
+
+async function initMic(){
+  const audio = new AudioContext();
+  const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+  const mic = audio.createMediaStreamSource(stream);
+  analyser = audio.createAnalyser();
   analyser.fftSize = 256;
   mic.connect(analyser);
 }
 
-function getVolume() {
+function getVolume(){
   const data = new Uint8Array(analyser.frequencyBinCount);
   analyser.getByteFrequencyData(data);
-  return data.reduce((a,b)=>a+b,0) / data.length;
+  return data.reduce((a,b)=>a+b)/data.length;
 }
 
-function loop() {
-  if (!analyser) return;
+/* 🎮 CONTROLES */
+document.getElementById("left").ontouchstart=()=>moveLeft=true;
+document.getElementById("left").ontouchend=()=>moveLeft=false;
+document.getElementById("right").ontouchstart=()=>moveRight=true;
+document.getElementById("right").ontouchend=()=>moveRight=false;
 
-  const volume = getVolume();
-  let pos = cube.getAttribute("position");
-
-  // SOPLAR (umbral alto)
-  if (volume > 60) {
-    velocityY += blowForce;
-  }
-
-  velocityY += gravity;
-  pos.y += velocityY;
-
-  // Piso
-  if (pos.y < 0.1) {
-    pos.y = 0.1;
-    velocityY = 0;
-  }
-
-  cube.setAttribute("position", pos);
-
-  // CHECK ENCESTAR (estricto)
-  const h = hoop.getAttribute("position");
-  const dx = Math.abs(pos.x - h.x);
-  const dy = pos.y - h.y;
-  const dz = Math.abs(pos.z - h.z);
-
-  if (dx < 0.15 && dz < 0.15 && dy > 0 && dy < 0.1) {
-    alert("🎉 ENCESTADO!");
-    cube.setAttribute("position", {x:0, y:0.1, z:-1});
-    velocityY = 0;
-  }
-}
-
-// TAP para activar mic (iOS)
-document.getElementById("tap").addEventListener("click", async () => {
+/* ▶ START */
+document.getElementById("start").addEventListener("click", async ()=>{
   await initMic();
-  document.getElementById("tap").style.display = "none";
-  setInterval(loop, 30);
+  spawnMines();
+  document.getElementById("start").style.display="none";
+  requestAnimationFrame(loop);
 });
+
+/* 🔄 LOOP */
+function loop(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  let volume = analyser ? getVolume() : 0;
+
+  if(volume > 55){
+    player.vy += blowForce;
+  }
+
+  player.vy += gravity;
+  player.y += player.vy;
+
+  if(moveLeft) player.x -= 4;
+  if(moveRight) player.x += 4;
+
+  // límites
+  player.x = Math.max(player.r, Math.min(canvas.width-player.r, player.x));
+  player.y = Math.max(player.r, Math.min(canvas.height-player.r, player.y));
+
+  // dibujar jugador
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, player.r, 0, Math.PI*2);
+  ctx.fillStyle="#00eaff";
+  ctx.fill();
+
+  // minas
+  for(let m of mines){
+    ctx.beginPath();
+    ctx.arc(m.x, m.y, m.r, 0, Math.PI*2);
+    ctx.fillStyle="crimson";
+    ctx.fill();
+
+    let dx = player.x-m.x;
+    let dy = player.y-m.y;
+    let dist = Math.hypot(dx,dy);
+
+    if(dist < player.r + m.r){
+      alert("💥 PERDISTE");
+      reset();
+      return;
+    }
+  }
+
+  requestAnimationFrame(loop);
+}
+
+function reset(){
+  player.x = canvas.width/2;
+  player.y = canvas.height-120;
+  player.vy = 0;
+  spawnMines();
+  requestAnimationFrame(loop);
+}
 </script>
 
 </body>
