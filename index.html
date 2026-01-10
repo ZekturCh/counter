@@ -2,119 +2,132 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <title>Mini juego viento AR</title>
+  <title>AR Soplar y Encestar</title>
 
-  <!-- A-Frame -->
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-
-  <!-- AR.js -->
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
-
 </head>
+
 <body style="margin:0; overflow:hidden;">
 
 <a-scene
   embedded
   arjs="sourceType: webcam; debugUIEnabled: false;"
-  vr-mode-ui="enabled: false">
+  vr-mode-ui="enabled:false">
 
-  <!-- Assets -->
-  <a-assets>
-    <a-asset-item id="cubeModel" src="cube.glb"></a-asset-item>
-  </a-assets>
-
-  <!-- Marker -->
+  <!-- MARKER -->
   <a-marker preset="hiro">
+
+    <!-- LUCES -->
+    <a-entity light="type: ambient; intensity: 1"></a-entity>
+    <a-entity light="type: directional; intensity: 1" position="0 1 1"></a-entity>
 
     <!-- ARO -->
     <a-torus
       id="hoop"
-      position="0 0.4 -1"
+      position="0 0.6 -1"
       radius="0.3"
-      radius-tubular="0.02"
+      radius-tubular="0.03"
       rotation="90 0 0"
       color="#00FFFF">
     </a-torus>
 
-    <!-- CUBO -->
-    <a-entity
+    <!-- CUBO (VISIBLE SEGURO) -->
+    <a-box
       id="cube"
-      gltf-model="#cubeModel"
-      position="0 0 -1"
-      scale="0.2 0.2 0.2">
-    </a-entity>
+      position="0 0.1 -1"
+      depth="0.15"
+      height="0.15"
+      width="0.15"
+      color="#FF3333">
+    </a-box>
 
   </a-marker>
 
   <a-entity camera></a-entity>
 </a-scene>
 
-<script>
-let audioContext;
-let analyser;
-let mic;
-let cube = document.getElementById("cube");
-let hoop = document.getElementById("hoop");
+<!-- UI TAP -->
+<div id="tap"
+style="
+position:fixed;
+top:0;left:0;
+width:100%;height:100%;
+background:#0008;
+color:white;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:24px;
+z-index:10;">
+Toca la pantalla y sopla 🌬️
+</div>
 
+<script>
+let audioContext, analyser;
 let velocityY = 0;
-let gravity = -0.0008;
-let blown = false;
+const gravity = -0.0012;
+const blowForce = 0.004;
+
+const cube = document.querySelector("#cube");
+const hoop = document.querySelector("#hoop");
 
 async function initMic() {
   audioContext = new (window.AudioContext || window.webkitAudioContext)();
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  mic = audioContext.createMediaStreamSource(stream);
+  const mic = audioContext.createMediaStreamSource(stream);
   analyser = audioContext.createAnalyser();
   analyser.fftSize = 256;
   mic.connect(analyser);
 }
 
 function getVolume() {
-  let data = new Uint8Array(analyser.frequencyBinCount);
+  const data = new Uint8Array(analyser.frequencyBinCount);
   analyser.getByteFrequencyData(data);
-  let sum = data.reduce((a, b) => a + b, 0);
-  return sum / data.length;
+  return data.reduce((a,b)=>a+b,0) / data.length;
 }
 
-function gameLoop() {
-  if (!analyser || !cube) return;
+function loop() {
+  if (!analyser) return;
 
-  let volume = getVolume();
+  const volume = getVolume();
+  let pos = cube.getAttribute("position");
 
-  // SOPLAR
-  if (volume > 30) {
-    velocityY += 0.002;
+  // SOPLAR (umbral alto)
+  if (volume > 60) {
+    velocityY += blowForce;
   }
 
-  // GRAVEDAD
   velocityY += gravity;
-
-  let pos = cube.getAttribute("position");
   pos.y += velocityY;
 
-  // LÍMITE
-  if (pos.y < 0) {
-    pos.y = 0;
+  // Piso
+  if (pos.y < 0.1) {
+    pos.y = 0.1;
     velocityY = 0;
   }
 
   cube.setAttribute("position", pos);
 
-  // CHECK ENCESTAR
-  let hoopPos = hoop.getAttribute("position");
-  let dx = Math.abs(pos.x - hoopPos.x);
-  let dy = Math.abs(pos.y - hoopPos.y);
-  let dz = Math.abs(pos.z - hoopPos.z);
+  // CHECK ENCESTAR (estricto)
+  const h = hoop.getAttribute("position");
+  const dx = Math.abs(pos.x - h.x);
+  const dy = pos.y - h.y;
+  const dz = Math.abs(pos.z - h.z);
 
-  if (dx < 0.15 && dy < 0.15 && dz < 0.15 && pos.y > hoopPos.y) {
+  if (dx < 0.15 && dz < 0.15 && dy > 0 && dy < 0.1) {
     alert("🎉 ENCESTADO!");
+    cube.setAttribute("position", {x:0, y:0.1, z:-1});
     velocityY = 0;
-    cube.setAttribute("position", {x:0, y:0, z:-1});
   }
 }
 
-initMic();
-setInterval(gameLoop, 30);
+// TAP para activar mic (iOS)
+document.getElementById("tap").addEventListener("click", async () => {
+  await initMic();
+  document.getElementById("tap").style.display = "none";
+  setInterval(loop, 30);
+});
 </script>
 
 </body>
