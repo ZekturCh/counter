@@ -1,220 +1,121 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="mobile-web-app-capable" content="yes">
-  <title>AR - Caballo 3D</title>
-  <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
-  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-  <script src="https://raw.githack.com/donmccurdy/aframe-extras/master/dist/aframe-extras.loaders.min.js"></script>
-  <style>
-    body {
-      margin: 0;
-      background: #000;
-      font-family: 'Segoe UI', Tahoma, sans-serif;
-      overflow: hidden;
-    }
+  <meta charset="utf-8" />
+  <title>Mini juego viento AR</title>
 
-    /* Precargador */
-    .preloader {
-      position: fixed;
-      inset: 0;
-      background: #000;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-    }
-    .spinner {
-      width: 50px; height: 50px;
-      border: 5px solid rgba(255,255,255,0.3);
-      border-top-color: #4CAF50;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .preloader-text { margin-top: 15px; font-size: 1.2rem; color: white; }
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
 
-    /* Panel inicial */
-    .instruction-panel {
-      position: fixed;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(0,0,0,0.8);
-      padding: 25px;
-      border-radius: 15px;
-      text-align: center;
-      z-index: 20;
-      max-width: 90%;
-      width: 350px;
-      color: white;
-    }
-    .instruction-panel h2 { margin-bottom: 10px; color: #4CAF50; }
-    #start-ar-btn {
-      margin-top: 15px;
-      background: #4CAF50;
-      color: white;
-      border: none;
-      padding: 12px 30px;
-      font-size: 1.1rem;
-      border-radius: 30px;
-      cursor: pointer;
-    }
-    #start-ar-btn:hover { background: #45a049; }
+  <!-- AR.js -->
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
 
-    /* Guía */
-    #alignment-guide {
-      position: fixed;
-      top: 50%;
-      left: 0;
-      width: 100%;
-      height: 120px;
-      background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%);
-      display: none;
-      flex-direction: column;
-      justify-content: flex-end;
-      align-items: center;
-      padding-bottom: 20px;
-      z-index: 10;
-    }
-    .guide-line {
-      width: 80%;
-      height: 4px;
-      background: #4CAF50;
-      margin-bottom: 10px;
-      border-radius: 2px;
-      box-shadow: 0 0 10px rgba(76,175,80,0.7);
-    }
-    .guide-text { color: white; text-shadow: 0 1px 3px black; }
-
-    /* Botón mostrar caballo */
-    #show-horse-btn {
-      position: fixed;
-      bottom: 40px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #4CAF50;
-      color: white;
-      border: none;
-      padding: 15px 40px;
-      font-size: 1.2rem;
-      border-radius: 30px;
-      cursor: pointer;
-      z-index: 20;
-      display: none;
-    }
-    #show-horse-btn:hover { background: #45a049; }
-
-    /* Mensaje éxito */
-    .success-message {
-      position: fixed;
-      top: 30px; left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,150,0,0.9);
-      padding: 12px 25px;
-      border-radius: 10px;
-      animation: fadeInOut 3s ease-in-out;
-      z-index: 30;
-      color: white;
-    }
-    @keyframes fadeInOut {
-      0% { opacity: 0; transform: translate(-50%, -20px); }
-      20% { opacity: 1; transform: translate(-50%, 0); }
-      80% { opacity: 1; }
-      100% { opacity: 0; transform: translate(-50%, -20px); }
-    }
-
-    #scene-container { width: 100%; height: 100%; }
-  </style>
 </head>
-<body>
-  <!-- Precargador -->
-  <div class="preloader">
-    <div class="spinner"></div>
-    <div class="preloader-text">Cargando experiencia AR...</div>
-  </div>
+<body style="margin:0; overflow:hidden;">
 
-  <!-- Panel inicial -->
-  <div class="instruction-panel" id="initial-instruction" style="display:none;">
-    <h2>🐎 Caballo AR</h2>
-    <p>ESPERE LA SOLICITUD DE PERMISOS DE LA CÁMARA ANTES DE INICIAR </p>
-    <p>Primero alinea tu celular con la línea verde para definir el piso.</p>
-    <button id="start-ar-btn">Comenzar Experiencia</button>
-  </div>
+<a-scene
+  embedded
+  arjs="sourceType: webcam; debugUIEnabled: false;"
+  vr-mode-ui="enabled: false">
 
-  <!-- Guía -->
-  <div id="alignment-guide">
-    <div class="guide-line"></div>
-    <div class="guide-text">Alinea el celular con el piso aquí</div>
-  </div>
+  <!-- Assets -->
+  <a-assets>
+    <a-asset-item id="cubeModel" src="cube.glb"></a-asset-item>
+  </a-assets>
 
-  <!-- Botón mostrar -->
-  <button id="show-horse-btn">Mostrar Caballo</button>
+  <!-- Marker -->
+  <a-marker preset="hiro">
 
-  <!-- Escena AR siempre presente (para que pida cámara) -->
-  <a-scene
-    embedded vr-mode-ui="enabled: false"
-    arjs="sourceType: webcam; facingMode: environment; debugUIEnabled: false;"
-    loading-screen="enabled: false"
-    id="ar-scene">
-    
-    <a-assets>
-      <a-asset-item id="horse-model" src="horseRA2.glb"></a-asset-item>
-    </a-assets>
-    
-    <a-entity id="horse-entity"
-      gltf-model="#horse-model"
-      position="1 1.5 -8"
-      rotation="0 90 0"
-      scale="1 1 1"
-      visible="false"
-      animation-mixer="loop: repeat">
+    <!-- ARO -->
+    <a-torus
+      id="hoop"
+      position="0 0.4 -1"
+      radius="0.3"
+      radius-tubular="0.02"
+      rotation="90 0 0"
+      color="#00FFFF">
+    </a-torus>
+
+    <!-- CUBO -->
+    <a-entity
+      id="cube"
+      gltf-model="#cubeModel"
+      position="0 0 -1"
+      scale="0.2 0.2 0.2">
     </a-entity>
-    
-    <a-camera></a-camera>
-  </a-scene>
 
-  <script>
-    window.addEventListener("load", () => {
-      // Simula carga inicial
-      setTimeout(() => {
-        document.querySelector(".preloader").style.display = "none";
-        document.getElementById("initial-instruction").style.display = "block";
-      }, 1500);
+  </a-marker>
 
-      const startBtn = document.getElementById("start-ar-btn");
-      const alignmentGuide = document.getElementById("alignment-guide");
-      const showHorseBtn = document.getElementById("show-horse-btn");
-      const horse = document.getElementById("horse-entity");
+  <a-entity camera></a-entity>
+</a-scene>
 
-      let horseVisible = false;
+<script>
+let audioContext;
+let analyser;
+let mic;
+let cube = document.getElementById("cube");
+let hoop = document.getElementById("hoop");
 
-      // Iniciar experiencia
-      startBtn.addEventListener("click", () => {
-        document.getElementById("initial-instruction").style.display = "none";
-        alignmentGuide.style.display = "flex";
-        showHorseBtn.style.display = "block";
-      });
+let velocityY = 0;
+let gravity = -0.0008;
+let blown = false;
 
-      // Mostrar caballo
-      showHorseBtn.addEventListener("click", () => {
-        if (!horseVisible) {
-          horse.setAttribute("visible", "true");
-          horseVisible = true;
-          alignmentGuide.style.display = "none";
-          showHorseBtn.style.display = "none";
+async function initMic() {
+  audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  mic = audioContext.createMediaStreamSource(stream);
+  analyser = audioContext.createAnalyser();
+  analyser.fftSize = 256;
+  mic.connect(analyser);
+}
 
-          // Mensaje éxito
-          const msg = document.createElement("div");
-          msg.className = "success-message";
-          msg.textContent = "✅ Caballo posicionado en tu espacio";
-          document.body.appendChild(msg);
-          setTimeout(() => msg.remove(), 3000);
-        }
-      });
-    });
-  </script>
+function getVolume() {
+  let data = new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteFrequencyData(data);
+  let sum = data.reduce((a, b) => a + b, 0);
+  return sum / data.length;
+}
+
+function gameLoop() {
+  if (!analyser || !cube) return;
+
+  let volume = getVolume();
+
+  // SOPLAR
+  if (volume > 30) {
+    velocityY += 0.002;
+  }
+
+  // GRAVEDAD
+  velocityY += gravity;
+
+  let pos = cube.getAttribute("position");
+  pos.y += velocityY;
+
+  // LÍMITE
+  if (pos.y < 0) {
+    pos.y = 0;
+    velocityY = 0;
+  }
+
+  cube.setAttribute("position", pos);
+
+  // CHECK ENCESTAR
+  let hoopPos = hoop.getAttribute("position");
+  let dx = Math.abs(pos.x - hoopPos.x);
+  let dy = Math.abs(pos.y - hoopPos.y);
+  let dz = Math.abs(pos.z - hoopPos.z);
+
+  if (dx < 0.15 && dy < 0.15 && dz < 0.15 && pos.y > hoopPos.y) {
+    alert("🎉 ENCESTADO!");
+    velocityY = 0;
+    cube.setAttribute("position", {x:0, y:0, z:-1});
+  }
+}
+
+initMic();
+setInterval(gameLoop, 30);
+</script>
+
 </body>
 </html>
