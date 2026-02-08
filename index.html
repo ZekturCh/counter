@@ -1,199 +1,118 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Sopla y esquiva 💨</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta charset="UTF-8">
+  <title>Contador Persistente</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<style>
-html,body{
-  margin:0;
-  padding:0;
-  background:#0b0b0b;
-  overflow:hidden;
-  touch-action:none;
-  font-family: Arial, sans-serif;
-}
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
 
-canvas{
-  display:block;
-  background: radial-gradient(circle at top, #111, #000);
-}
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0a0a0a;
+      color: #ffffff;
+    }
 
-/* BOTONES */
-#controls{
-  position:fixed;
-  bottom:20px;
-  width:100%;
-  display:flex;
-  justify-content:space-between;
-  padding:0 30px;
-  box-sizing:border-box;
-}
+    .counter-box {
+      background: #111;
+      padding: 30px 40px;
+      border-radius: 14px;
+      text-align: center;
+      box-shadow: 0 0 40px rgba(0,0,0,0.6);
+    }
 
-.btn{
-  width:80px;
-  height:80px;
-  border-radius:50%;
-  background:#ffffff22;
-  color:white;
-  font-size:40px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  user-select:none;
-}
+    .counter-title {
+      font-size: 14px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      opacity: 0.6;
+      margin-bottom: 10px;
+    }
 
-#start{
-  position:fixed;
-  inset:0;
-  background:#000c;
-  color:white;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:24px;
-  z-index:10;
-  text-align:center;
-}
-</style>
+    .counter-value {
+      font-size: 72px;
+      font-weight: 700;
+      margin: 20px 0;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+    }
+
+    button {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: none;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.1s ease, background 0.2s ease;
+    }
+
+    button:active {
+      transform: scale(0.92);
+    }
+
+    .btn-minus {
+      background: #ff3b3b;
+      color: #fff;
+    }
+
+    .btn-plus {
+      background: #2eff7e;
+      color: #000;
+    }
+  </style>
 </head>
-
 <body>
 
-<canvas id="game"></canvas>
+  <div class="counter-box">
+    <div class="counter-title">Contador</div>
+    <div id="counter" class="counter-value">0</div>
 
-<div id="start">Toca para empezar<br>y sopla al micrófono 💨</div>
+    <div class="buttons">
+      <button class="btn-minus" id="decrease">−</button>
+      <button class="btn-plus" id="increase">+</button>
+    </div>
+  </div>
 
-<div id="controls">
-  <div class="btn" id="left">◀</div>
-  <div class="btn" id="right">▶</div>
-</div>
+  <script>
+    const counterEl = document.getElementById("counter");
+    const increaseBtn = document.getElementById("increase");
+    const decreaseBtn = document.getElementById("decrease");
 
-<script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+    // Cargar valor guardado o iniciar en 0
+    let count = localStorage.getItem("contadorValor");
+    count = count !== null ? parseInt(count) : 0;
 
-function resize(){
-  canvas.width = innerWidth;
-  canvas.height = innerHeight;
-}
-window.addEventListener("resize", resize);
-resize();
+    counterEl.textContent = count;
 
-/* 🎈 JUGADOR */
-let player = {
-  x: canvas.width/2,
-  y: canvas.height-120,
-  r: 18,
-  vy: 0
-};
-
-const gravity = 0.15;
-const blowForce = -0.5;
-let moveLeft=false, moveRight=false;
-
-/* 💣 MINAS */
-let mines=[];
-
-function spawnMines(){
-  mines=[];
-  for(let i=0;i<6;i++){
-    mines.push({
-      x: Math.random()*canvas.width,
-      y: Math.random()*canvas.height*0.7,
-      r: 18
-    });
-  }
-}
-
-/* 🎤 MICRO */
-let analyser;
-
-async function initMic(){
-  const audio = new AudioContext();
-  const stream = await navigator.mediaDevices.getUserMedia({audio:true});
-  const mic = audio.createMediaStreamSource(stream);
-  analyser = audio.createAnalyser();
-  analyser.fftSize = 256;
-  mic.connect(analyser);
-}
-
-function getVolume(){
-  const data = new Uint8Array(analyser.frequencyBinCount);
-  analyser.getByteFrequencyData(data);
-  return data.reduce((a,b)=>a+b)/data.length;
-}
-
-/* 🎮 CONTROLES */
-document.getElementById("left").ontouchstart=()=>moveLeft=true;
-document.getElementById("left").ontouchend=()=>moveLeft=false;
-document.getElementById("right").ontouchstart=()=>moveRight=true;
-document.getElementById("right").ontouchend=()=>moveRight=false;
-
-/* ▶ START */
-document.getElementById("start").addEventListener("click", async ()=>{
-  await initMic();
-  spawnMines();
-  document.getElementById("start").style.display="none";
-  requestAnimationFrame(loop);
-});
-
-/* 🔄 LOOP */
-function loop(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  let volume = analyser ? getVolume() : 0;
-
-  if(volume > 55){
-    player.vy += blowForce;
-  }
-
-  player.vy += gravity;
-  player.y += player.vy;
-
-  if(moveLeft) player.x -= 4;
-  if(moveRight) player.x += 4;
-
-  // límites
-  player.x = Math.max(player.r, Math.min(canvas.width-player.r, player.x));
-  player.y = Math.max(player.r, Math.min(canvas.height-player.r, player.y));
-
-  // dibujar jugador
-  ctx.beginPath();
-  ctx.arc(player.x, player.y, player.r, 0, Math.PI*2);
-  ctx.fillStyle="#00eaff";
-  ctx.fill();
-
-  // minas
-  for(let m of mines){
-    ctx.beginPath();
-    ctx.arc(m.x, m.y, m.r, 0, Math.PI*2);
-    ctx.fillStyle="crimson";
-    ctx.fill();
-
-    let dx = player.x-m.x;
-    let dy = player.y-m.y;
-    let dist = Math.hypot(dx,dy);
-
-    if(dist < player.r + m.r){
-      alert("💥 PERDISTE");
-      reset();
-      return;
+    function updateCounter() {
+      counterEl.textContent = count;
+      localStorage.setItem("contadorValor", count);
     }
-  }
 
-  requestAnimationFrame(loop);
-}
+    increaseBtn.addEventListener("click", () => {
+      count++;
+      updateCounter();
+    });
 
-function reset(){
-  player.x = canvas.width/2;
-  player.y = canvas.height-120;
-  player.vy = 0;
-  spawnMines();
-  requestAnimationFrame(loop);
-}
-</script>
+    decreaseBtn.addEventListener("click", () => {
+      count--;
+      updateCounter();
+    });
+  </script>
 
 </body>
 </html>
