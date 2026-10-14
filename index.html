@@ -82,6 +82,8 @@ button:active {
   <div class="buttons">
     <button class="btn-minus" id="decrease1">−</button>
     <button class="btn-plus" id="increase1">+</button>
+    <button class="btn-plus" id="increase5_1">+5</button>
+    <button class="btn-plus" id="increase10_1">+10</button>
     <button class="btn-reset" id="reset1">↺</button>
   </div>
 </div>
@@ -93,14 +95,18 @@ button:active {
   <div class="buttons">
     <button class="btn-minus" id="decrease2">−</button>
     <button class="btn-plus" id="increase2">+</button>
+    <button class="btn-plus" id="increase5_2">+5</button>
+    <button class="btn-plus" id="increase10_2">+10</button>
     <button class="btn-reset" id="reset2">↺</button>
   </div>
 </div>
 
 <script>
-function createCounter(counterId, increaseId, decreaseId, resetId, storageKey) {
+function createCounter(counterId, increaseId, increase5Id, increase10Id, decreaseId, resetId, storageKey) {
   const counterEl = document.getElementById(counterId);
   const increaseBtn = document.getElementById(increaseId);
+  const increase5Btn = document.getElementById(increase5Id);
+  const increase10Btn = document.getElementById(increase10Id);
   const decreaseBtn = document.getElementById(decreaseId);
   const resetBtn = document.getElementById(resetId);
 
@@ -117,6 +123,16 @@ function createCounter(counterId, increaseId, decreaseId, resetId, storageKey) {
     update();
   });
 
+  increase5Btn.addEventListener("click", () => {
+    count += 5;
+    update();
+  });
+
+  increase10Btn.addEventListener("click", () => {
+    count += 10;
+    update();
+  });
+
   decreaseBtn.addEventListener("click", () => {
     count--;
     update();
@@ -130,8 +146,8 @@ function createCounter(counterId, increaseId, decreaseId, resetId, storageKey) {
   update();
 }
 
-createCounter("counter1", "increase1", "decrease1", "reset1", "contador1");
-createCounter("counter2", "increase2", "decrease2", "reset2", "contador2");
+createCounter("counter1", "increase1", "increase5_1", "increase10_1", "decrease1", "reset1", "contador1");
+createCounter("counter2", "increase2", "increase5_2", "increase10_2", "decrease2", "reset2", "contador2");
 </script>
 
 </body>
